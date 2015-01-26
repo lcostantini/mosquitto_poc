@@ -5,9 +5,7 @@ Dotenv.load
 Cuba.plugin Cuba::Render
 Cuba.settings[:render][:template_engine] = "html"
 
-def client_mqtt
-  Mosca::Client.new
-end
+CLIENT = Mosca::Client.new
 
 Cuba.define do
   on get do
@@ -18,8 +16,14 @@ Cuba.define do
 
   on post do
     on "publish/:topic/:payload" do |topic, payload|
-      client_mqtt.publish payload, topic_out: topic
-      res.status = 200
+      begin
+        CLIENT.publish! payload, topic_out: topic
+        res.write "Public the value '#{payload}' in channel '#{topic}'"
+      rescue Timeout::Error
+        res.write "Connection timed out. Couldn't publish on broker"
+      rescue Exception => e
+        res.write "ERROR: #{e.message}"
+      end
     end
   end
 end
